@@ -9,6 +9,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security;
+using System.Security.Cryptography;
+using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -19,26 +22,33 @@ namespace WindowsFormsApp4
 {
     public partial class Form1 : Form
     {
+        
         Label label1;
         Label label2;
         Label label3;
         Label label4;
         TextBox textBox1;
         TextBox textBox2;
+        TextBox textBox3;
         DateTimePicker date;
         DateTimePicker time;
         NumericUpDown districtId;
-        Button fileDirectory;
-        Button logsDirectory;
+        Button pickPathToResult;
+        Button pickPathToLogs;
+        Button pickPathToData;
         Button apply;
-        FolderBrowserDialog folderBrowserDialog1;
-        FolderBrowserDialog folderBrowserDialog2;
+        FolderBrowserDialog setPathToResult;
+        FolderBrowserDialog setPathToLogs;
+        OpenFileDialog setPathToData;
         public Form1()
         {
+            PermissionSet permSet = new PermissionSet(PermissionState.None);
+            permSet.AddPermission(new FileDialogPermission(PermissionState.Unrestricted));
             Text = "DeliveryApp pre-alpha release";
 
-            folderBrowserDialog1 = new FolderBrowserDialog();
-            folderBrowserDialog2 = new FolderBrowserDialog();
+            setPathToResult = new FolderBrowserDialog();
+            setPathToLogs = new FolderBrowserDialog();
+            setPathToData = new OpenFileDialog();
 
             label1 = new Label();
             label1.Text = "Введите параметры сортировки";
@@ -100,30 +110,48 @@ namespace WindowsFormsApp4
             textBox1.Height = 20;
             Controls.Add(textBox1);
 
-            fileDirectory = new Button();
-            fileDirectory.Text = "Указать путь к файлу с результатом выборки";
-            fileDirectory.Click += FileDirectory_Click;
-            fileDirectory.Left = 10;
-            fileDirectory.Top = textBox1.Bottom;
-            fileDirectory.Width = ClientSize.Width - 20;
-            fileDirectory.Height = 20;
-            Controls.Add(fileDirectory);
+            pickPathToResult = new Button();
+            pickPathToResult.Text = "Указать путь к файлу с результатом выборки";
+            pickPathToResult.Click += FileDirectory_Click;
+            pickPathToResult.Left = 10;
+            pickPathToResult.Top = textBox1.Bottom;
+            pickPathToResult.Width = ClientSize.Width - 20;
+            pickPathToResult.Height = 20;
+            Controls.Add(pickPathToResult);
 
             textBox2 = new TextBox();
             textBox2.Left = 10;
-            textBox2.Top = fileDirectory.Bottom;
+            textBox2.Top = pickPathToResult.Bottom;
             textBox2.Width = ClientSize.Width - 20;
             textBox2.Height = 20;
             Controls.Add(textBox2);
 
-            logsDirectory = new Button();
-            logsDirectory.Text = "Указать путь к файлу с логами";
-            logsDirectory.Click += LogsDirectory_Click;
-            logsDirectory.Left = 10;
-            logsDirectory.Top = textBox2.Bottom;
-            logsDirectory.Width = ClientSize.Width - 20;
-            logsDirectory.Height = 20;
-            Controls.Add(logsDirectory);
+            pickPathToLogs = new Button();
+            pickPathToLogs.Text = "Указать путь к файлу с логами";
+            pickPathToLogs.Click += LogsDirectory_Click;
+            pickPathToLogs.Left = 10;
+            pickPathToLogs.Top = textBox2.Bottom;
+            pickPathToLogs.Width = ClientSize.Width - 20;
+            pickPathToLogs.Height = 20;
+            Controls.Add(pickPathToLogs);
+
+            textBox3 = new TextBox();
+            textBox3.Left = 10;
+            textBox3.Top = pickPathToLogs.Bottom;
+            textBox3.Width = ClientSize.Width - 20;
+            textBox3.Height = 20;
+            Controls.Add(textBox3);
+
+
+
+            pickPathToData = new Button();
+            pickPathToData.Text = "Указать путь к файлу с данными";
+            pickPathToData.Click += DataDirectory_Click;
+            pickPathToData.Left = 10;
+            pickPathToData.Top = textBox3.Bottom;
+            pickPathToData.Width = ClientSize.Width - 20;
+            pickPathToData.Height = 20;
+            Controls.Add(pickPathToData);
 
             apply = new Button();
             apply.Text = "Применить";
@@ -137,7 +165,7 @@ namespace WindowsFormsApp4
         private async void Process(object sender, EventArgs empty)
         {
             //await Method();
-            if (folderBrowserDialog1.SelectedPath == "" || folderBrowserDialog2.SelectedPath == "")
+            if (setPathToResult.SelectedPath == "" || setPathToLogs.SelectedPath == "")
             {
                 MessageBox.Show("Укажите путь к папкам");
                 return;
@@ -147,110 +175,46 @@ namespace WindowsFormsApp4
                 MessageBox.Show("Дата должна быть меньше текущей");
                 return;
             }
+            var sqlDBWorker = new SQLDBWorker();
+            sqlDBWorker.SetValues(setPathToResult.SelectedPath);
+            var textFileWorker = new TextFileWorker();
+            
+            textFileWorker.SetValues(setPathToResult.SelectedPath);
+            var queue = new Queue<OrderInfo>();
+            textFileWorker.GetData((int)districtId.Value, date.Value.Date + time.Value.TimeOfDay, queue, textFileWorker.CreateReport);
+            //sqlDBWorker.GetData((int)districtId.Value, date.Value.Date + time.Value.TimeOfDay, queue, textFileWorker.CreateReport);
 
-            using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["MyConnectionString"].ConnectionString))
-            {
-                connection.StateChange += connection_StateChange;
-                connection.Open();
-                SqlCommand cmd1 = new SqlCommand("SELECT DISTINCT DistrictId FROM Deliveries", connection);
-                var DistrictIds = cmd1.ExecuteReader();
-                var flag = false;
-                while (DistrictIds.Read())
-                {
-                    if ((int)districtId.Value == DistrictIds.GetInt32(0))
-                    {
-                        flag = true;
-                        break;
-                    }
-                }
-                DistrictIds.Close();
-                if (!flag)
-                {
-                    MessageBox.Show("Район не найден");
-                    return;
-                }
-                var startTime = date.Value.Date + time.Value.TimeOfDay;
-                SqlCommand cmd = new SqlCommand("SELECT * FROM Deliveries \r\n" +
-                    "WHERE DistrictId = @DstrId \r\n" +
-                    "and DeliveryTime>=@startTime \r\n" +
-                    "and DeliveryTime<= (SELECT DATEADD(minute, 30, DeliveryTime) " +
-                    "FROM (SELECT TOP 1 * FROM Deliveries WHERE DistrictId = @DstrId " +
-                    "and DeliveryTime>=@startTime Order by DeliveryTime) " +
-                    "as DeliveryTime1)"
-                    , connection);
-                cmd.Parameters.AddWithValue("@startTime", startTime);
-                cmd.Parameters.AddWithValue("@DstrId", (int)districtId.Value);
-                GetResult(cmd);
-                connection.Close();
-            }
         }
 
-        private void GetResult(SqlCommand cmd)
-        {
-            string directory = folderBrowserDialog1.SelectedPath;
-            string fileName = string.Format("Result{0}.txt", DateTime.Now.ToString("yyyyMMddHHmmss"));
-            Directory.CreateDirectory(directory);
-            string filePath = Path.Combine(directory, fileName);
-            var counter = 0;
-            using (SqlDataReader reader = cmd.ExecuteReader())
-            {
-                using (StreamWriter writer = new StreamWriter(filePath))
-                {
-                    while (reader.Read())
-                    {
-                        writer.WriteLine(reader[0].ToString() + "\t"
-                            + reader[1].ToString() + "\t"
-                            + reader[2].ToString() + "\t"
-                            + ((DateTime)reader[3]).ToString("yyyy-MM-dd HH:mm:ss"));
-                        counter++;
-                    }
-                }
-            }
-            MessageBox.Show("Всего записей: " + counter);
-        }
-        static void connection_StateChange(object sender, StateChangeEventArgs e)
-        {
-            SqlConnection connection = sender as SqlConnection;
-            MessageBox.Show("Connection to" + Environment.NewLine +
-            "Data Source: " + connection.DataSource + Environment.NewLine +
-            "Database: " + connection.Database + Environment.NewLine +
-            "State: " + connection.State);
-            //TODO добавить логирование (вывод информации о соединении и его состоянии)
-            //Console.WriteLine
-            //(
-            //"Connection to" + Environment.NewLine +
-            //"Data Source: " + connection.DataSource + Environment.NewLine +
-            //"Database: " + connection.Database + Environment.NewLine +
-            //"State: " + connection.State
-            //);
-        }
+
         private void FileDirectory_Click(object sender, EventArgs e)
         {
-            if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
-                folderBrowserDialog1.RootFolder = Environment.SpecialFolder.Desktop;
-            textBox1.Text = folderBrowserDialog1.SelectedPath;
+            if (setPathToResult.ShowDialog() == DialogResult.OK)
+                setPathToResult.RootFolder = Environment.SpecialFolder.Desktop;
+            textBox1.Text = setPathToResult.SelectedPath;
         }
         private void LogsDirectory_Click(object sender, EventArgs e)
         {
-            if (folderBrowserDialog2.ShowDialog() == DialogResult.OK)
-                folderBrowserDialog2.RootFolder = Environment.SpecialFolder.Desktop;
-            textBox2.Text = folderBrowserDialog2.SelectedPath;
+            if (setPathToLogs.ShowDialog() == DialogResult.OK)
+                setPathToLogs.RootFolder = Environment.SpecialFolder.Desktop;
+            textBox2.Text = setPathToLogs.SelectedPath;
         }
-
-
-        async Task Method()
+        private void DataDirectory_Click(object sender, EventArgs e)
         {
-            string path = "D:/input.txt";
+            setPathToData.Filter = "Текстовый файл. Файл формата  .txt|*.txt";
+            if (setPathToData.ShowDialog() == DialogResult.OK)
+                textBox3.Text = setPathToData.FileName;
+        }
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // Form1
+            // 
+            this.ClientSize = new System.Drawing.Size(284, 261);
+            this.Name = "Form1";
+            this.ResumeLayout(false);
 
-            // асинхронное чтение
-            using (StreamReader reader = new StreamReader(path))
-            {
-                string line;
-                while ((line = await reader.ReadLineAsync()) != null)
-                {
-                    MessageBox.Show(line);
-                }
-            }
         }
     }
 }
