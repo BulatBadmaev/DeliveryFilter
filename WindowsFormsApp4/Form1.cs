@@ -253,7 +253,7 @@ namespace WindowsFormsApp4
             var queue = new Queue<OrderInfo>();
             sourceDataSetters[SourceDataSetterSelect.SelectedIndex].GetData((int)districtId.Value, date.Value.Date + time.Value.TimeOfDay, queue, reportCreators[ReportCreatorSelect.SelectedIndex].CreateReport);
             logger.Info("Отчет сформирован");
-            MessageBox.Show("Отчет сформирован");
+            
         }
 
         public void CheckInsertedParameters()

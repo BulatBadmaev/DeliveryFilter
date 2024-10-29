@@ -94,7 +94,7 @@ namespace WindowsFormsApp4
                     writer.WriteLine($"{orderInfo.OrderId}\t{orderInfo.Weight}\t{orderInfo.CityDistrictId}\t{orderInfo.DeliveryTime:yyyy-MM-dd HH:mm:ss}");
                     counter++;
                 }
-                
+                MessageBox.Show("Отчет сформирован");
             }
             catch (Exception ex)
             { logger.Error(ex); }
