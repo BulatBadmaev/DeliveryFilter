@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NLog;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data.SqlClient;
@@ -17,14 +18,17 @@ namespace WindowsFormsApp4
         string targetDirectory;
         string sourceFileDirectory;
         string sourceFileName;
-   
+        static Logger logger = LogManager.GetCurrentClassLogger();
 
-        public async Task<int> GetData(int districtId, DateTime startTime, Queue<OrderInfo> orderInfos, Action<Queue<OrderInfo>> createReport)
+        public async Task<int> GetData(int districtId, DateTime startTime, Queue<OrderInfo> orderInfos, Func<Queue<OrderInfo>, int> createReport)
         {
-            Directory.CreateDirectory(sourceFileDirectory);
-            string filePath = Path.Combine(sourceFileDirectory, sourceFileName);
-            using (StreamReader reader = new StreamReader(filePath))
+            logger.Debug("Запущен метод GetData. Входные данные "+"идентификатор района: " + districtId + " старотое время: " + startTime);
+            StreamReader reader = null;
+            try
             {
+                Directory.CreateDirectory(sourceFileDirectory);
+                string filePath = Path.Combine(sourceFileDirectory, sourceFileName);
+                reader = new StreamReader(filePath);
                 var list = new List<OrderInfo>();
                 string line;
                 int id;
@@ -38,10 +42,9 @@ namespace WindowsFormsApp4
                     counter++;
                     string[] values = line.Split('\t');
                     id = int.Parse(values[0]);
-                    weight = double.Parse(values[1], CultureInfo.InvariantCulture);
+                    weight = double.Parse(values[1]);
                     cityDistrictId = int.Parse(values[2]);
                     deliveryTime = DateTime.ParseExact(values[3], "yyyy-MM-dd HH:mm:ss", null);
-
                     if (cityDistrictId == districtId && deliveryTime >= startTime)
                     {
                         if (deliveryTime < firstTimeDelivery)
@@ -51,36 +54,57 @@ namespace WindowsFormsApp4
                     }
 
                 }
-                MessageBox.Show("Прочитано из файла: " + counter + " строк");
                 foreach (var item in list.Where(x => x.DeliveryTime <= firstTimeDelivery.AddMinutes(30)))
                 {
                     orderInfos.Enqueue(item);
                 }
-                MessageBox.Show("Прочитано из файла: " + list.Count + " записей");
+                logger.Debug("Прочитано из файла: " + list.Count + " записей");
                 if (list.Count > 0)
                 {
                     createReport.Invoke(orderInfos);
                 }
                 return list.Count;
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                logger.Error(ex);
+                return 0;
+            }
+            finally
+            {
+                if (reader != null)
+                    reader.Close();
+            }
           
         }
-        public void CreateReport(Queue<OrderInfo> orderInfos)
+        public int CreateReport(Queue<OrderInfo> orderInfos)
         {
             string fileName = string.Format("Result{0}.txt", DateTime.Now.ToString("yyyyMMddHHmmss"));
             Directory.CreateDirectory(targetDirectory);
             string filePath = Path.Combine(targetDirectory, fileName);
             var counter = 0;
-            using (StreamWriter writer = new StreamWriter(filePath))
+            StreamWriter writer = null;
+            try
             {
+                writer = new StreamWriter(filePath);
                 while (orderInfos.Count > 0)
                 {
                     var orderInfo = orderInfos.Dequeue();
                     writer.WriteLine($"{orderInfo.OrderId}\t{orderInfo.Weight}\t{orderInfo.CityDistrictId}\t{orderInfo.DeliveryTime:yyyy-MM-dd HH:mm:ss}");
                     counter++;
                 }
+                
             }
-            MessageBox.Show("Прочитано из очереди: " + counter + " записей");
+            catch (Exception ex)
+            { logger.Error(ex); }
+            finally
+            {
+                if (writer != null)
+                    writer.Close();
+            }
+            logger.Debug("В файл: " + fileName +" записано " + counter + " записей");
+            return counter;
         }
         public override string ToString()
         {

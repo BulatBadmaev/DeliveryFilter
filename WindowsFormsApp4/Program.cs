@@ -20,7 +20,6 @@ namespace WindowsFormsApp4
             MyForm.AddReportCreator(textFileWorker);
             MyForm.AddSourceDataSetter(textFileWorker);
             MyForm.AddSourceDataSetter(sqlDBWorker);
-            MyForm.CheckCreatorsAndSetters();
             Application.Run(MyForm);
         }
     }

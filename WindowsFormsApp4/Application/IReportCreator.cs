@@ -10,6 +10,6 @@ namespace WindowsFormsApp4
     {
         void SetValues(string targetDirectory);
         
-        void CreateReport(Queue<OrderInfo> orderInfos);
+        int CreateReport(Queue<OrderInfo> orderInfos);
     }
 }

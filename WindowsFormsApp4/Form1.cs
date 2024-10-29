@@ -1,4 +1,7 @@
 ﻿using Microsoft.SqlServer.Server;
+using NLog.Config;
+using NLog.Targets;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -16,18 +19,24 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
+
+
 
 namespace WindowsFormsApp4
 {
     public partial class Form1 : Form
     {
-        Label label1;
+        #region инициализация компонентов
+        GroupBox groupBox1;
+        GroupBox groupBox2;
+        GroupBox groupBox3;
         Label label2;
         Label label3;
         Label label4;
         Label label5;
         Label label6;
+        Label label7;
+        Label label8;
         TextBox textBox1;
         TextBox textBox2;
         TextBox textBox3;
@@ -45,150 +54,185 @@ namespace WindowsFormsApp4
         ComboBox SourceDataSetterSelect;
         Dictionary<int, IReportCreator> reportCreators = new Dictionary<int, IReportCreator>();
         Dictionary<int, ISourceDataSetter> sourceDataSetters = new Dictionary<int, ISourceDataSetter>();
+        private static Logger logger = LogManager.GetCurrentClassLogger();
         public Form1()
         {
-            
+            var offset1 = 30;
             PermissionSet permSet = new PermissionSet(PermissionState.None);
             permSet.AddPermission(new FileDialogPermission(PermissionState.Unrestricted));
             Text = "DeliveryApp pre-alpha release";
-            this.Size = new Size(300, 500);
+            this.Size = new Size(400, 600);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             setPathToResult = new FolderBrowserDialog();
-            setPathToResult.SelectedPath = "C:\\Users\\Булат\\Desktop";
+            //setPathToResult.SelectedPath = "C:\\Users\\Булат\\Desktop";
             setPathToLogs = new FolderBrowserDialog();
-            setPathToLogs.SelectedPath = "C:\\Users\\Булат\\Desktop";
+            //setPathToLogs.SelectedPath = "C:\\Users\\Булат\\Desktop";
             setPathToData = new OpenFileDialog();
-            setPathToData.FileName = "D:\\input.txt";
-                label1 = new Label();
-            label1.Text = "Введите параметры сортировки";
-            label1.Top = 20;
-            label1.Left = 10;
-            label1.Width = ClientSize.Width - 20;
-            Controls.Add(label1);
+            //setPathToData.FileName = "D:\\input.txt";
+         
+            groupBox1 = new GroupBox();
+            groupBox1.Text = "Введите параметры сортировки";
+            groupBox1.Top = 10;
+            groupBox1.Left = 10;
+            groupBox1.Width = ClientSize.Width - 20;
+            groupBox1.Height = 100;
+            Controls.Add(groupBox1);
 
             label2 = new Label()
             {
-                Text = "Район:", 
-                Top = label1.Bottom,
-                Left = 10,
+                Text = "Район:",
+                TextAlign = ContentAlignment.MiddleRight,
+                Top = groupBox1.Top + 10,
+                Left = offset1,
                 Width = 50
             };
-            Controls.Add(label2);
+            districtId = new NumericUpDown()
+            {
+                Left = label2.Right,
+                Top = groupBox1.Top + 10,
+                Width = groupBox1.Width - label2.Width - offset1 - 10,
+                Height = 20
+            };
+            label3 = new Label()
+            {
+                Text = "Дата:",
+                TextAlign = ContentAlignment.MiddleRight,
+                Top = label2.Bottom,
+                Left = offset1,
+                Width = 50
+            };
+            date = new DateTimePicker()
+            {
+                Top = label2.Bottom,
+                Left = label3.Right,
+                Width = groupBox1.Width - label2.Width - offset1 - 10,
+                Height = 20
+            };
+            label4 = new Label()
+            {
+                Text = "Время:",
+                TextAlign = ContentAlignment.MiddleRight,
+                Top = label3.Bottom,
+                Left = offset1,
+                Width = 50,
+            };
+            time = new DateTimePicker()
+            {
+                Left = label4.Right,
+                Top = label3.Bottom,
+                Width = groupBox1.Width - label2.Width - offset1 - 10,
+                Height = 20,
+                Format = DateTimePickerFormat.Time,
+                ShowUpDown = true,
+            };
+            groupBox1.Controls.AddRange(new Control[] { label2, districtId, date, time, label3, label4 });
 
-            districtId = new NumericUpDown();
-            districtId.Left = label2.Right;
-            districtId.Top = label1.Bottom;
-            districtId.Width = ClientSize.Width - label2.Width - 20;
-            districtId.Height = 20;
-            Controls.Add(districtId);
+            groupBox2 = new GroupBox();
+            groupBox2.Text = "Укажите соответствующие директории";
+            groupBox2.Top = groupBox1.Bottom + 10;
+            groupBox2.Left = 10;
+            groupBox2.Width = ClientSize.Width - 20;
+            groupBox2.Height = 130;
 
-            label3 = new Label();
-            label3.Text = "Дата:";
-            label3.Top = label2.Bottom;
-            label3.Left = 10;
-            label3.Width = 50;
-            Controls.Add(label3);
 
-            date = new DateTimePicker();
-            date.Left = label3.Right;
-            date.Top = label2.Bottom;
-            date.Width = ClientSize.Width - label2.Width - 20;
-            date.Height = 20;
-            Controls.Add(date);
-
-            label4 = new Label();
-            label4.Text = "Время:";
-            label4.Top = label3.Bottom;
-            label4.Left = 10;
-            label4.Width = 50;
-            Controls.Add(label4);
-
-            time = new DateTimePicker();
-            time.Left = label4.Right;
-            time.Top = label3.Bottom;
-            time.Width = ClientSize.Width - label2.Width - 20;
-            time.Height = 20;
-            time.Format = DateTimePickerFormat.Time;
-            time.ShowUpDown = true;
-            Controls.Add(time);
-
+            label7 = new Label()
+            {
+                Text = "Результат выборки:",
+                TextAlign = ContentAlignment.MiddleRight,
+                Top =  20,
+                Left = 10,
+                Width = 120,
+            };
+            groupBox2.Controls.Add(label7);
             textBox1 = new TextBox();
-            textBox1.Left = 10;
-            textBox1.Top = label4.Bottom;
-            textBox1.Width = ClientSize.Width - 20;
+            textBox1.ReadOnly = true;
+            textBox1.Left = label7.Right;
+            textBox1.Top = 20;
+            textBox1.Width = groupBox2.Width - label7.Width -20;
             textBox1.Height = 20;
-            Controls.Add(textBox1);
+            groupBox2.Controls.Add(textBox1);
+            Controls.Add(groupBox2);
 
             pickPathToResult = new Button();
             pickPathToResult.Text = "Задать путь сохранения результата выборки";
             pickPathToResult.Click += FileDirectory_Click;
             pickPathToResult.Left = 10;
-            pickPathToResult.Top = textBox1.Bottom;
-            pickPathToResult.Width = ClientSize.Width - 20;
+            pickPathToResult.Top = label7.Bottom+1;
+            pickPathToResult.Width = groupBox2.Width - 20;
             pickPathToResult.Height = 20;
-            Controls.Add(pickPathToResult);
-
+            groupBox2.Controls.Add(pickPathToResult);
+            label8 = new Label()
+            {
+                Text = "Логи:",
+                TextAlign = ContentAlignment.MiddleRight,
+                Top = pickPathToResult.Bottom + 10,
+                Left = 10,
+                Width = 120,
+            };
+            groupBox2.Controls.Add(label8);
             textBox2 = new TextBox();
-            textBox2.Left = 10;
-            textBox2.Top = pickPathToResult.Bottom;
-            textBox2.Width = ClientSize.Width - 20;
+            textBox2.ReadOnly = true;
+            textBox2.Left = label8.Right;
+            textBox2.Top = pickPathToResult.Bottom +10;
+            textBox2.Width = groupBox2.Width - label8.Width - 20;
             textBox2.Height = 20;
-            Controls.Add(textBox2);
+            groupBox2.Controls.Add(textBox2);
 
             pickPathToLogs = new Button();
             pickPathToLogs.Text = "Задать путь сохранения логов";
             pickPathToLogs.Click += LogsDirectory_Click;
             pickPathToLogs.Left = 10;
-            pickPathToLogs.Top = textBox2.Bottom;
-            pickPathToLogs.Width = ClientSize.Width - 20;
+            pickPathToLogs.Top = label8.Bottom+1;
+            pickPathToLogs.Width = groupBox2.Width - 20;
             pickPathToLogs.Height = 20;
-            Controls.Add(pickPathToLogs);
+            groupBox2.Controls.Add(pickPathToLogs);
 
-            textBox3 = new TextBox();
-            textBox3.Left = 10;
-            textBox3.Top = pickPathToLogs.Bottom;
-            textBox3.Width = ClientSize.Width - 20;
-            textBox3.Height = 20;
-            Controls.Add(textBox3);
-
-            pickPathToData = new Button();
-            pickPathToData.Text = "Указать путь к исходным данным(.txt)";
-            pickPathToData.Click += DataDirectory_Click;
-            pickPathToData.Left = 10;
-            pickPathToData.Top = textBox3.Bottom;
-            pickPathToData.Width = ClientSize.Width - 20;
-            pickPathToData.Height = 20;
-            Controls.Add(pickPathToData);
+            groupBox3 = new GroupBox();
+            groupBox3.Text = "Настройте режим работы";
+            groupBox3.Top = groupBox2.Bottom + 10;
+            groupBox3.Left = 10;
+            groupBox3.Width = ClientSize.Width - 20;
+            groupBox3.Height = 170;
+            Controls.Add(groupBox3);
 
             label5 = new Label();
             label5.Text = "Формат входных данных:";
-            label5.Top = pickPathToData.Bottom;
+            label5.Top = 20;
             label5.Left = 10;
-            label5.Width = ClientSize.Width - 20;
-            Controls.Add(label5);
-            
+            label5.Width = groupBox3.Width - 20;
+            groupBox3.Controls.Add(label5);
+
 
             SourceDataSetterSelect = new ComboBox();
             SourceDataSetterSelect.Top = label5.Bottom;
             SourceDataSetterSelect.Left = 10;
-            SourceDataSetterSelect.Width = ClientSize.Width - 20;
+            SourceDataSetterSelect.Width = groupBox3.Width - 20;
             SourceDataSetterSelect.Height = 20;
-            Controls.Add(SourceDataSetterSelect);
+            groupBox3.Controls.Add(SourceDataSetterSelect);
 
             label6 = new Label();
             label6.Text = "Формат результатов:";
             label6.Top = SourceDataSetterSelect.Bottom;
             label6.Left = 10;
-            label6.Width = ClientSize.Width - 20;
-            Controls.Add(label6);
+            label6.Width = groupBox3.Width - 20;
+            groupBox3.Controls.Add(label6);
 
             ReportCreatorSelect = new ComboBox();
             ReportCreatorSelect.Left = 10;
             ReportCreatorSelect.Top = label6.Bottom;
-            ReportCreatorSelect.Width = ClientSize.Width - 20;
+            ReportCreatorSelect.Width = groupBox3.Width - 20;
             ReportCreatorSelect.Height = 20;
-            Controls.Add(ReportCreatorSelect);
+            groupBox3.Controls.Add(ReportCreatorSelect);
+
+            pickPathToData = new Button();
+            pickPathToData.Text = "Указать путь к исходным данным(.txt)";
+            pickPathToData.Click += DataDirectory_Click;
+            pickPathToData.Left = 10;
+            pickPathToData.Top = ReportCreatorSelect.Bottom+10;
+            pickPathToData.Width = groupBox3.Width - 20;
+            pickPathToData.Height = 20;
+            groupBox3.Controls.Add(pickPathToData);
 
             apply = new Button();
             apply.Text = "Применить";
@@ -200,12 +244,40 @@ namespace WindowsFormsApp4
             Controls.Add(apply);
             
         }
+        #endregion
         private async void Process(object sender, EventArgs empty)
         {
-            //await Method();
-            if (setPathToResult.SelectedPath == "" || setPathToLogs.SelectedPath == "")
+            CheckInsertedParameters();
+            sourceDataSetters[SourceDataSetterSelect.SelectedIndex].SetValues(new string[] { setPathToData.FileName, setPathToLogs.SelectedPath });
+            reportCreators[ReportCreatorSelect.SelectedIndex].SetValues(setPathToResult.SelectedPath);
+            var queue = new Queue<OrderInfo>();
+            sourceDataSetters[SourceDataSetterSelect.SelectedIndex].GetData((int)districtId.Value, date.Value.Date + time.Value.TimeOfDay, queue, reportCreators[ReportCreatorSelect.SelectedIndex].CreateReport);
+            logger.Info("Отчет сформирован");
+            MessageBox.Show("Отчет сформирован");
+        }
+
+        public void CheckInsertedParameters()
+        {
+
+            if (ReportCreatorSelect.SelectedIndex == -1 || SourceDataSetterSelect.SelectedIndex == -1)
             {
-                MessageBox.Show("Укажите путь к папкам");
+                MessageBox.Show("Не задана логика создания отчета и (или) получения данных. Обратитесь к разработчикам");
+                logger.Fatal("Не задана логика создания отчета и (или) получения данных");
+                this.Close();
+            }
+            if (setPathToResult.SelectedPath == "")
+            {
+                MessageBox.Show("Укажите директорию сохранения результата выборки");
+                return;
+            }
+            if (setPathToLogs.SelectedPath == "")
+            {
+                MessageBox.Show("Укажите директорию сохранения логов");
+                return;
+            }
+            if (sourceDataSetters[SourceDataSetterSelect.SelectedIndex] is TextFileWorker && setPathToData.FileName == "")
+            {
+                MessageBox.Show("Укажите путь к исходным данным(.txt)");
                 return;
             }
             if (date.Value.Date + time.Value.TimeOfDay > DateTime.Now)
@@ -213,38 +285,6 @@ namespace WindowsFormsApp4
                 MessageBox.Show("Дата должна быть меньше текущей");
                 return;
             }
-            //switch (ReportCreatorSelect.SelectedIndex)
-            //{
-            //    case 0:
-            //        reportCreators[0].SetValues(setPathToLogs.SelectedPath);
-             
-            //        break;
-            //    case 1:
-            //        AddReportCreator(new ReportCreator());
-            //        break;
-            //    default:
-            //        break;
-            //
-
-            sourceDataSetters[SourceDataSetterSelect.SelectedIndex].SetValues(new string[] { setPathToData.FileName, setPathToLogs.SelectedPath});
-            reportCreators[ReportCreatorSelect.SelectedIndex].SetValues(setPathToResult.SelectedPath);
-            //var textFileWorker = new TextFileWorker();
-
-            //textFileWorker.SetValues(setPathToResult.SelectedPath);
-            var queue = new Queue<OrderInfo>();
-            sourceDataSetters[SourceDataSetterSelect.SelectedIndex].GetData((int)districtId.Value, date.Value.Date + time.Value.TimeOfDay, queue, reportCreators[ReportCreatorSelect.SelectedIndex].CreateReport);
-            //sqlDBWorker.GetData((int)districtId.Value, date.Value.Date + time.Value.TimeOfDay, queue, textFileWorker.CreateReport);
-
-        }
-
-        public void CheckCreatorsAndSetters()
-        {
-            if (ReportCreatorSelect.SelectedIndex == -1 || SourceDataSetterSelect.SelectedIndex == -1)
-            {
-                MessageBox.Show("Не задана логика создания отчета и получения данных. Обратитесь к разработчикам");
-                this.Close();
-            }
-                
         }
 
         private void FileDirectory_Click(object sender, EventArgs e)
@@ -252,34 +292,33 @@ namespace WindowsFormsApp4
             if (setPathToResult.ShowDialog() == DialogResult.OK)
                 setPathToResult.RootFolder = Environment.SpecialFolder.Desktop;
             textBox1.Text = setPathToResult.SelectedPath;
+            logger.Info("Указан путь к папке с результатами: " + setPathToResult.SelectedPath);
         }
         private void LogsDirectory_Click(object sender, EventArgs e)
         {
             if (setPathToLogs.ShowDialog() == DialogResult.OK)
+            {
                 setPathToLogs.RootFolder = Environment.SpecialFolder.Desktop;
-            textBox2.Text = setPathToLogs.SelectedPath;
+                textBox2.Text = setPathToLogs.SelectedPath;
+                string fileName = string.Format("log{0}.log", DateTime.Now.ToString("yyyyMMdd"));
+                Directory.CreateDirectory(setPathToLogs.SelectedPath);
+                string filePath = Path.Combine(setPathToLogs.SelectedPath, fileName);
+                SetDynamicLogFilePath(filePath);
+                logger.Info("Указан путь к папке с логами: " + setPathToLogs.SelectedPath);
+            }
         }
         private void DataDirectory_Click(object sender, EventArgs e)
         {
             setPathToData.Filter = "Текстовый файл. Файл формата  .txt|*.txt";
             if (setPathToData.ShowDialog() == DialogResult.OK)
-                textBox3.Text = setPathToData.FileName;
-        }
-        private void InitializeComponent()
-        {
-            this.SuspendLayout();
-            // 
-            // Form1
-            // 
-            this.ClientSize = new System.Drawing.Size(284, 261);
-            this.Name = "Form1";
-            this.ResumeLayout(false);
-
+            { 
+                logger.Info("Указан путь к исходным данным: " + setPathToData.FileName);
+            }
         }
         public void AddReportCreator(IReportCreator reportCreator)
         {
             var index = ReportCreatorSelect.Items.Add(reportCreator);
-            reportCreators.Add(index, reportCreator); 
+            reportCreators.Add(index, reportCreator);
             if (ReportCreatorSelect.SelectedIndex == -1)
             {
                 ReportCreatorSelect.SelectedIndex = 0;
@@ -288,10 +327,22 @@ namespace WindowsFormsApp4
         public void AddSourceDataSetter(ISourceDataSetter sourceDataSetter)
         {
             var index = SourceDataSetterSelect.Items.Add(sourceDataSetter);
-            sourceDataSetters.Add(index, sourceDataSetter); 
+            sourceDataSetters.Add(index, sourceDataSetter);
             if (SourceDataSetterSelect.SelectedIndex == -1)
             {
                 SourceDataSetterSelect.SelectedIndex = 0;
+            }
+        }
+        private void SetDynamicLogFilePath(string newPath)
+        {
+            var config = LogManager.Configuration as LoggingConfiguration;
+            if (config == null) return;
+
+            var fileTarget = config.FindTargetByName<FileTarget>("file");
+            if (fileTarget != null)
+            {
+                fileTarget.FileName = newPath;
+                LogManager.Configuration = config;
             }
         }
     }
