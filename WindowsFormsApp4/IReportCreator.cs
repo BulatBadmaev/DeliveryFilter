@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace WindowsFormsApp4
 {
-    internal interface IReportCreator
+    public interface IReportCreator
     {
-        string Direcrory { get; set; }
+        void SetValues(string targetDirectory);
+        
+        void CreateReport(Queue<OrderInfo> orderInfos);
     }
 }

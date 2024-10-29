@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace WindowsFormsApp4
 {
-    internal class OrderInfo
+    public class OrderInfo
     {
         public OrderInfo(int orderId, double weight, int cityDistrictId, DateTime deliveryTime)
         {

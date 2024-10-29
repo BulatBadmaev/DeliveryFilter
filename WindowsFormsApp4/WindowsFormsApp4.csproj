@@ -51,7 +51,7 @@
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="IInitialData.cs" />
+    <Compile Include="ISourceDataSetter.cs" />
     <Compile Include="IReportCreator.cs" />
     <Compile Include="OrderInfo.cs" />
     <Compile Include="Program.cs" />

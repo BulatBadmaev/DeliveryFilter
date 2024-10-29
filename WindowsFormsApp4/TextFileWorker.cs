@@ -12,23 +12,17 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace WindowsFormsApp4
 {
-    internal class TextFileWorker
+    internal class TextFileWorker : IReportCreator, ISourceDataSetter
     {
-        string TargetDirectory { get; set; }
-        public void SetValues(string targetDirectory)
-        {
-            TargetDirectory = targetDirectory;
-        }
+        string targetDirectory;
+        string sourceFileDirectory;
+        string sourceFileName;
+   
 
-        public async Task<int> GetData(int districtId, DateTime startTime, Queue<OrderInfo> orderInfos, Func<Queue<OrderInfo>, Task> createReport)
+        public async Task<int> GetData(int districtId, DateTime startTime, Queue<OrderInfo> orderInfos, Action<Queue<OrderInfo>> createReport)
         {
-            string directory = @"D:\";
-            string fileName = "input.txt";
-
-            // Create the directory if it doesn't exist
-            Directory.CreateDirectory(directory);
-            // Create the file
-            string filePath = Path.Combine(directory, fileName);
+            Directory.CreateDirectory(sourceFileDirectory);
+            string filePath = Path.Combine(sourceFileDirectory, sourceFileName);
             using (StreamReader reader = new StreamReader(filePath))
             {
                 var list = new List<OrderInfo>();
@@ -65,17 +59,17 @@ namespace WindowsFormsApp4
                 MessageBox.Show("Прочитано из файла: " + list.Count + " записей");
                 if (list.Count > 0)
                 {
-                    await createReport.Invoke(orderInfos);
+                    createReport.Invoke(orderInfos);
                 }
                 return list.Count;
             }
           
         }
-        public async Task CreateReport(Queue<OrderInfo> orderInfos)
+        public void CreateReport(Queue<OrderInfo> orderInfos)
         {
             string fileName = string.Format("Result{0}.txt", DateTime.Now.ToString("yyyyMMddHHmmss"));
-            Directory.CreateDirectory(TargetDirectory);
-            string filePath = Path.Combine(TargetDirectory, fileName);
+            Directory.CreateDirectory(targetDirectory);
+            string filePath = Path.Combine(targetDirectory, fileName);
             var counter = 0;
             using (StreamWriter writer = new StreamWriter(filePath))
             {
@@ -87,6 +81,21 @@ namespace WindowsFormsApp4
                 }
             }
             MessageBox.Show("Прочитано из очереди: " + counter + " записей");
+        }
+        public override string ToString()
+        {
+            return "Файл в формате .txt";
+        }
+
+        void IReportCreator.SetValues(string targetDirectory)
+        {
+            this.targetDirectory = targetDirectory;
+        }
+
+        void ISourceDataSetter.SetValues(string[] values)
+        {
+            sourceFileName = values[0];
+            sourceFileDirectory = values[1];
         }
     }
 }

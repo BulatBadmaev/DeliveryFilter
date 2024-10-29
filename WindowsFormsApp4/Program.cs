@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 namespace WindowsFormsApp4
 {
-    internal static class Program
+    public static class Program
     {
         /// <summary>
         /// Главная точка входа для приложения.
@@ -14,9 +14,14 @@ namespace WindowsFormsApp4
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            var MyForm = new Form1();
+            var textFileWorker = new TextFileWorker();
+            var sqlDBWorker = new SQLDBWorker();
+            MyForm.AddReportCreator(textFileWorker);
+            MyForm.AddSourceDataSetter(textFileWorker);
+            MyForm.AddSourceDataSetter(sqlDBWorker);
+            MyForm.CheckCreatorsAndSetters();
+            Application.Run(MyForm);
         }
     }
 }

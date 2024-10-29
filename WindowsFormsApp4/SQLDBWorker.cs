@@ -13,11 +13,8 @@ using System.Globalization;
 
 namespace WindowsFormsApp4
 {
-    internal class SQLDBWorker
+    public class SQLDBWorker : ISourceDataSetter
     {
-        string TargetDirectory { get; set; }
-        SqlCommand cmd;
-
         private async Task<bool> CheckDistrictIdAsync(int districtId)
         {
             using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["MyConnectionString"].ConnectionString))
@@ -37,11 +34,7 @@ namespace WindowsFormsApp4
                 return flag;
             }
         }
-        public void SetValues(string targetDirectory)
-        {
-            TargetDirectory = targetDirectory;
-        }
-        public async Task<int> GetData(int districtId, DateTime startTime, Queue<OrderInfo> orderInfos, Func<Queue<OrderInfo>, Task> createReport)
+        public async Task<int> GetData(int districtId, DateTime startTime, Queue<OrderInfo> orderInfos, Action<Queue<OrderInfo>> createReport)
         {
             int counter = 0;
             SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["MyConnectionString"].ConnectionString);
@@ -65,28 +58,28 @@ namespace WindowsFormsApp4
             }
             reader.Close();
             MessageBox.Show("Записано в очередь: " + counter + " записей");
-            await createReport.Invoke(orderInfos);
+            createReport.Invoke(orderInfos);
             connection.Close();
             return counter;
 
         }
-        public async Task CreateReport(Queue<OrderInfo> orderInfos)
-        {
-            string fileName = string.Format("Result{0}.txt", DateTime.Now.ToString("yyyyMMddHHmmss"));
-            Directory.CreateDirectory(TargetDirectory);
-            string filePath = Path.Combine(TargetDirectory, fileName);
-            var counter = 0;
-            using (StreamWriter writer = new StreamWriter(filePath))
-            {
-                while (orderInfos.Count > 0)
-                {
-                    var orderInfo = orderInfos.Dequeue();
-                    writer.WriteLine($"{orderInfo.OrderId}\t{orderInfo.Weight}\t{orderInfo.CityDistrictId}\t{orderInfo.DeliveryTime:yyyy-MM-dd HH:mm:ss}");
-                    counter++;
-                }
-            }
-            MessageBox.Show("Прочитано из очереди: " + counter + " записей");
-        }
+        //public async Task CreateReport(Queue<OrderInfo> orderInfos)
+        //{
+        //    string fileName = string.Format("Result{0}.txt", DateTime.Now.ToString("yyyyMMddHHmmss"));
+        //    Directory.CreateDirectory(TargetDirectory);
+        //    string filePath = Path.Combine(TargetDirectory, fileName);
+        //    var counter = 0;
+        //    using (StreamWriter writer = new StreamWriter(filePath))
+        //    {
+        //        while (orderInfos.Count > 0)
+        //        {
+        //            var orderInfo = orderInfos.Dequeue();
+        //            writer.WriteLine($"{orderInfo.OrderId}\t{orderInfo.Weight}\t{orderInfo.CityDistrictId}\t{orderInfo.DeliveryTime:yyyy-MM-dd HH:mm:ss}");
+        //            counter++;
+        //        }
+        //    }
+        //    MessageBox.Show("Прочитано из очереди: " + counter + " записей");
+        //}
         static void connection_StateChange(object sender, StateChangeEventArgs e)
         {
             SqlConnection connection = sender as SqlConnection;
@@ -102,6 +95,15 @@ namespace WindowsFormsApp4
             //"Database: " + connection.Database + Environment.NewLine +
             //"State: " + connection.State
             //);
+        }
+        public override string ToString()
+        {
+            return "База данных SQL";
+        }
+
+        public void SetValues(string[] values)
+        {
+
         }
     }
 }
